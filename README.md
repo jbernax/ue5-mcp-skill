@@ -205,13 +205,9 @@ ue5-mcp-skill/
 │   ├── mcp_cli.py                    # Command-line interface operator
 │   ├── stdio_bridge.py               # Stdio MCP server bridge for Claude Desktop
 │   └── launch_ue5_mcp.sh             # Reusable Editor launcher and watchdog
-├── schemas/
-│   ├── call_tool.json                # JSON schema for call_tool meta-tool
-│   ├── describe_toolset.json         # JSON schema for describe_toolset
-│   └── list_toolsets.json            # JSON schema for list_toolsets
 ├── references/
 │   ├── toolsets_reference.md         # Comprehensive catalog of UE5 toolsets
-│   └── ue5_setup_guide.md            # In-depth setup guide for Unreal projects
+│   └── ue5_setup_guide.md            # Advanced engine setup (headless, watchdog, networking)
 ├── examples/
 │   ├── mcp_config.json               # MCP client configuration example
 │   ├── claude_desktop_config.json   # Claude Desktop stdio bridge config example

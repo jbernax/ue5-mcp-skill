@@ -1,145 +1,85 @@
-# Unreal Engine Project Setup for MCP
+# Advanced Unreal Engine 5 MCP Configuration Guide
 
-This guide outlines how to enable and configure the native Model Context Protocol (MCP) server in any Unreal Engine 5.4+ / 5.5+ / 5.6+ / 5.7+ / 5.8+ project.
+This guide covers advanced engine integration, headless cloud execution, performance considerations, and networking for the Unreal Engine Model Context Protocol (MCP) server.
 
----
-
-## 1. Required Plugins in `.uproject`
-
-Add or verify the following plugins in your project's `.uproject` file:
-
-```json
-{
-  "Plugins": [
-    {
-      "Name": "ModelContextProtocol",
-      "Enabled": true
-    },
-    {
-      "Name": "ToolsetRegistry",
-      "Enabled": true
-    },
-    {
-      "Name": "EditorToolset",
-      "Enabled": true
-    },
-    {
-      "Name": "PythonScriptPlugin",
-      "Enabled": true
-    },
-    {
-      "Name": "EditorScriptingUtilities",
-      "Enabled": true
-    },
-    {
-      "Name": "PCGToolset",
-      "Enabled": true,
-      "Optional": true
-    }
-  ]
-}
-```
+For basic project setup and quickstart, refer to the [README.md](../README.md).
 
 ---
 
-## 2. Configuration Settings (`Config/DefaultEditorPerProjectUserSettings.ini`)
+## 1. Headless Linux, Containers & Cloud Workstations
 
-Configure the MCP server port and startup behavior in `Config/DefaultEditorPerProjectUserSettings.ini` (or `Config/DefaultEngine.ini`):
+### Offscreen Rendering vs NullRHI
 
-```ini
-[/Script/ModelContextProtocolEngine.ModelContextProtocolSettings]
-ServerUrlPath=/mcp
-ServerPortNumber=7903
-bAutoStartServer=True
-bEnableToolSearch=True
-```
+When running in automated CI/CD pipelines, container environments (Docker), or remote servers:
+
+- **Do NOT use `-nullrhi` if screenshot capture is required**: `-nullrhi` completely disables the rendering hardware interface. While the MCP server will listen and actor/level tools will execute, `CaptureViewport` will fail or produce black images.
+- **Use Vulkan offscreen**:
+  ```bash
+  UnrealEditor /path/to/project.uproject \
+      -ModelContextProtocolStartServer \
+      -ModelContextProtocolPort=7903 \
+      -nosplash \
+      -vulkan
+  ```
+- **Virtual Display (Xvfb)**: If running on a Linux host without a physical X server:
+  ```bash
+  Xvfb :99 -screen 0 1920x1080x24 &
+  export DISPLAY=:99
+  ```
 
 ---
 
-## 3. Launching Unreal Editor with MCP
+## 2. Memory Watchdogs & Long-Running Sessions
 
-### Command-Line Arguments
+The Unreal Editor process accumulates cache and memory over long-running sessions, especially when loading multiple levels or procedural content.
 
-When launching the Editor, pass the MCP flags:
+The provided [`launch_ue5_mcp.sh`](../scripts/launch_ue5_mcp.sh) script includes an automated RSS watchdog:
+- Monitored via `/proc/<pid>/statm` (Linux).
+- Default threshold: `MAX_RSS_GB=14` (configurable via environment variable).
+- Safely terminates runaway Editor instances before kernel OOM killer triggers.
+
+---
+
+## 3. Extending Toolsets in Custom C++
+
+Projects can register their own custom tools with the MCP server by implementing the `IToolset` interface or decorating UFunctions:
+
+1. Add `ModelContextProtocol` and `ToolsetRegistry` to your module's `Build.cs`:
+   ```csharp
+   PublicDependencyModuleNames.AddRange(new string[] {
+       "Core",
+       "CoreUObject",
+       "Engine",
+       "ModelContextProtocol",
+       "ToolsetRegistry",
+       "EditorToolset"
+   });
+   ```
+2. Any `UFUNCTION` exposed via the toolset registry will automatically become discoverable under `list_toolsets` and invokable via `call_tool`.
+
+---
+
+## 4. Remote Networking & Port Forwarding
+
+By default, the MCP server binds to `127.0.0.1:7903`. To connect from a remote workstation or agent container:
+
+### SSH Port Forwarding
+
+Forward the remote port to your local machine:
 
 ```bash
-UnrealEditor /path/to/MyProject.uproject \
-    -ModelContextProtocolStartServer \
-    -ModelContextProtocolPort=7903
+ssh -N -L 7903:127.0.0.1:7903 user@remote-unreal-host
 ```
 
-### Headless / Daemon Mode (Linux / CI / Cloud)
-
-For automated pipelines or containerized environments:
-
-```bash
-UnrealEditor /path/to/MyProject.uproject \
-    -ModelContextProtocolStartServer \
-    -ModelContextProtocolPort=7903 \
-    -nosplash \
-    -vulkan
-```
-
-### Using the Provided Launcher Script
-
-```bash
-# Check status
-bash scripts/launch_ue5_mcp.sh --status
-
-# Launch in background daemon mode
-bash scripts/launch_ue5_mcp.sh --daemon
-
-# Launch full desktop GUI Editor
-bash scripts/launch_ue5_mcp.sh --gui
-
-# Stop Editor safely
-bash scripts/launch_ue5_mcp.sh --kill
-```
+Once forwarded, local clients (`mcp_cli.py`, Antigravity, Claude Desktop) connect to `http://127.0.0.1:7903/mcp` without modifying firewall rules or exposing unauthenticated HTTP endpoints to public networks.
 
 ---
 
-## 4. Configuring Agent MCP Clients
+## 5. Troubleshooting Matrix
 
-### Antigravity (`~/.gemini/config/mcp_config.json` or `.mcp.json`)
-
-```json
-{
-  "mcpServers": {
-    "unreal-mcp": {
-      "url": "http://127.0.0.1:7903/mcp"
-    }
-  }
-}
-```
-
-### Claude Desktop (`claude_desktop_config.json`)
-
-For clients requiring stdio bridges, or direct Streamable HTTP:
-
-```json
-{
-  "mcpServers": {
-    "unreal-mcp": {
-      "command": "python",
-      "args": ["-m", "scripts.mcp_cli", "status"]
-    }
-  }
-}
-```
-
----
-
-## 5. Verification
-
-Probe the port directly:
-
-```bash
-# Check port listening
-nc -z 127.0.0.1 7903 && echo "Listening"
-
-# Check status via CLI
-python scripts/mcp_cli.py status
-
-# Query active level
-python scripts/mcp_cli.py diagnostics
-```
+| Issue | Cause | Resolution |
+| :--- | :--- | :--- |
+| `Connection refused` on port 7903 | MCP server not started or port blocked | Check `launch_ue5_mcp.sh --status`. Verify `-ModelContextProtocolStartServer` is in launch flags. |
+| Viewport screenshot is black | GPU rendering not active (e.g. `-nullrhi`) | Run with `-vulkan` and ensure Vulkan driver is loaded (`vulkaninfo`). |
+| Session ID expires | Long inactivity period | Handled automatically by `UE5MCPClient`, which renegotiates sessions on HTTP 400. |
+| Python script tool not found | `PythonScriptPlugin` disabled | Enable `PythonScriptPlugin` and `EditorScriptingUtilities` in `.uproject`. |
