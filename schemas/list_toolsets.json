@@ -1,0 +1,8 @@
+{
+  "name": "list_toolsets",
+  "description": "List all available toolsets with names and descriptions.",
+  "parameters": {
+    "type": "object",
+    "properties": {}
+  }
+}

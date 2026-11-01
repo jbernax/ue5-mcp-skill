@@ -1,0 +1,5 @@
+{
+  "name": "ue5-mcp-operator",
+  "version": "1.0.0",
+  "description": "Reusable Unreal Engine 5 Model Context Protocol (MCP) skill, client library, and CLI operator."
+}
