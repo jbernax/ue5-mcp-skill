@@ -138,6 +138,36 @@ To install as a workspace skill:
 git clone https://github.com/jbernax/ue5-mcp-skill.git .agents/skills/ue5-mcp-operator
 ```
 
+### Claude Desktop
+
+Claude Desktop communicates via stdio. Use the zero-dependency Python stdio bridge ([`scripts/stdio_bridge.py`](scripts/stdio_bridge.py)) in your `claude_desktop_config.json`:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "unreal-engine": {
+      "command": "python3",
+      "args": [
+        "/path/to/ue5-mcp-skill/scripts/stdio_bridge.py"
+      ],
+      "env": {
+        "UE_MCP_URL": "http://127.0.0.1:7903/mcp"
+      }
+    }
+  }
+}
+```
+
+The bridge exposes both native UE5 meta-tools (`list_toolsets`, `describe_toolset`, `call_tool`) and direct high-level tools (`ue5_capture_viewport`, `ue5_get_camera`, `ue5_set_camera`, `ue5_diagnostics`, `ue5_find_actors`, `ue5_execute_python`, `ue5_console_command`).
+
+### Claude Code
+
+See [`CLAUDE.md`](CLAUDE.md) for runbooks, CLI command references, and best practices tailored for Claude Code.
+
 ---
 
 ## Python API Example
@@ -169,9 +199,11 @@ if client.is_server_listening():
 ```
 ue5-mcp-skill/
 ├── SKILL.md                          # Main skill documentation for AI agents
+├── CLAUDE.md                         # Dedicated guide for Claude Code and Claude Desktop
 ├── scripts/
 │   ├── ue5_mcp_client.py             # Standalone Python MCP client library
 │   ├── mcp_cli.py                    # Command-line interface operator
+│   ├── stdio_bridge.py               # Stdio MCP server bridge for Claude Desktop
 │   └── launch_ue5_mcp.sh             # Reusable Editor launcher and watchdog
 ├── schemas/
 │   ├── call_tool.json                # JSON schema for call_tool meta-tool
@@ -182,11 +214,13 @@ ue5-mcp-skill/
 │   └── ue5_setup_guide.md            # In-depth setup guide for Unreal projects
 ├── examples/
 │   ├── mcp_config.json               # MCP client configuration example
+│   ├── claude_desktop_config.json   # Claude Desktop stdio bridge config example
 │   ├── DefaultEditorPerProjectUserSettings.ini
 │   └── sample_editor_script.py       # In-Editor Python automation example
 ├── tests/
 │   ├── test_client.py                # Unit tests for Python client
-│   └── test_cli.py                   # Unit tests for CLI and launcher
+│   ├── test_cli.py                   # Unit tests for CLI and launcher
+│   └── test_stdio_bridge.py          # Unit tests for Claude stdio bridge
 ├── .github/workflows/ci.yml          # GitHub Actions CI workflow
 ├── pyproject.toml                    # Package metadata and entry points
 ├── LICENSE                           # MIT License

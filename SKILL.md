@@ -118,7 +118,15 @@ if client.is_server_listening():
 
 ---
 
-## 5. Validation Checklist
+## 5. Claude Desktop & Claude Code Integration
+
+For Claude Desktop (stdio transport) and Claude Code:
+- Use `scripts/stdio_bridge.py` in `claude_desktop_config.json` to bridge stdio to the running Editor.
+- See [`CLAUDE.md`](./CLAUDE.md) for full operational runbooks and available tools (`ue5_capture_viewport`, `ue5_get_camera`, `ue5_set_camera`, `ue5_diagnostics`, etc.).
+
+---
+
+## 6. Validation Checklist
 
 - Verify `bash scripts/launch_ue5_mcp.sh --status` reports `Port 7903 : LISTENING`.
 - Verify `python scripts/mcp_cli.py status` connects and returns an active `mcp_session_id`.

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "unreal-engine": {
+      "command": "python3",
+      "args": [
+        "/path/to/ue5-mcp-skill/scripts/stdio_bridge.py"
+      ],
+      "env": {
+        "UE_MCP_URL": "http://127.0.0.1:7903/mcp"
+      }
+    }
+  }
+}
